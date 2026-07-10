@@ -18,6 +18,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/../db.php';
+
 // ------------------------------------------------------------------------
 // 2. POST HANDLING — PRG pattern
 // ------------------------------------------------------------------------
@@ -30,48 +32,79 @@ $val_mobile   = htmlspecialchars($_SESSION['mobile'] ?? '09XXXXXXXXX', ENT_QUOTE
 $val_email    = htmlspecialchars($_SESSION['email'] ?? 'resident@example.gov.ph', ENT_QUOTES);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $newName   = trim((string) ($_POST['full_name'] ?? ''));
+    $newName         = trim((string) ($_POST['full_name'] ?? ''));
     $newDistrict     = trim((string) ($_POST['district'] ?? ''));
     $newPurokAddress = trim((string) ($_POST['purok_address'] ?? ''));
-    $newMobile = trim((string) ($_POST['mobile'] ?? ''));
-    $newEmail  = trim((string) ($_POST['email'] ?? ''));
+    $newMobile       = trim((string) ($_POST['mobile'] ?? ''));
+    $newEmail        = trim((string) ($_POST['email'] ?? ''));
 
-    if ($newName === '') {
-        $errors['full_name'] = 'Please enter your full name.';
+    if ($newName === '' || mb_strlen($newName, 'UTF-8') < 2) {
+        $errors['full_name'] = 'Please enter your full name (min. 2 characters).';
     }
     if ($newDistrict === '') {
         $errors['district'] = 'Please select your district.';
     }
-    if ($newPurokAddress === '') {
-        $errors['purok_address'] = 'Please select your sitio.';
+    if ($newPurokAddress === '' || mb_strlen($newPurokAddress, 'UTF-8') < 3) {
+        $errors['purok_address'] = 'Please enter your purok or street address (min. 3 characters).';
     }
-    if ($newMobile === '') {
-        $errors['mobile'] = 'Please enter your mobile number.';
+    if (!preg_match('/^09[0-9]{9}$/', $newMobile) && !preg_match('/^\+63[0-9]{10}$/', $newMobile)) {
+        $errors['mobile'] = 'Enter a valid Philippine mobile number (09XXXXXXXXX).';
     }
-    if ($newEmail === '' || !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+    if (!filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
         $errors['email'] = 'Please enter a valid email address.';
     }
 
     if (empty($errors)) {
-        $_SESSION['user_name'] = $newName;
-        $_SESSION['district']      = $newDistrict;
-        $_SESSION['purok_address'] = $newPurokAddress;
-        $_SESSION['mobile']    = $newMobile;
-        $_SESSION['email']     = $newEmail;
-        $_SESSION['flash_msg']  = 'Profile updated successfully.';
-        $_SESSION['flash_type'] = 'success';
-        header('Location: settings.php?success=1');
-        exit;
-    } else {
-        $val_name   = htmlspecialchars($newName, ENT_QUOTES);
+        try {
+            $pdo  = getDB();
+            $stmt = $pdo->prepare(
+                'UPDATE residents
+                 SET full_name = :name, district = :district, purok_address = :purok_address,
+                     mobile = :mobile, email = :email
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                ':name'          => $newName,
+                ':district'      => $newDistrict,
+                ':purok_address' => $newPurokAddress,
+                ':mobile'        => $newMobile,
+                ':email'         => $newEmail,
+                ':id'            => $_SESSION['user_id'],
+            ]);
+
+            $_SESSION['user_name']     = $newName;
+            $_SESSION['district']      = $newDistrict;
+            $_SESSION['purok_address'] = $newPurokAddress;
+            $_SESSION['mobile']        = $newMobile;
+            $_SESSION['email']         = $newEmail;
+
+            $_SESSION['flash_msg']  = 'Profile updated successfully.';
+            $_SESSION['flash_type'] = 'success';
+            header('Location: settings.php?success=1');
+            exit;
+
+        } catch (Throwable $e) {
+            error_log('[SETTINGS_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
+            $errors['general'] = 'Failed to save changes. Please try again.';
+        }
+    }
+
+    if (!empty($errors)) {
+        $val_name         = htmlspecialchars($newName, ENT_QUOTES);
         $val_district     = htmlspecialchars($newDistrict, ENT_QUOTES);
         $val_purokAddress = htmlspecialchars($newPurokAddress, ENT_QUOTES);
-        $val_mobile = htmlspecialchars($newMobile, ENT_QUOTES);
-        $val_email  = htmlspecialchars($newEmail, ENT_QUOTES);
+        $val_mobile       = htmlspecialchars($newMobile, ENT_QUOTES);
+        $val_email        = htmlspecialchars($newEmail, ENT_QUOTES);
         $_SESSION['settings_errors'] = $errors;
-        $_SESSION['settings_old']    = ['full_name' => $newName, 'district' => $newDistrict, 'purok_address' => $newPurokAddress, 'mobile' => $newMobile, 'email' => $newEmail];
-        $_SESSION['flash_msg']       = 'Please correct the errors below.';
-        $_SESSION['flash_type']      = 'danger';
+        $_SESSION['settings_old']    = [
+            'full_name'     => $newName,
+            'district'      => $newDistrict,
+            'purok_address' => $newPurokAddress,
+            'mobile'        => $newMobile,
+            'email'         => $newEmail,
+        ];
+        $_SESSION['flash_msg']  = 'Please correct the errors below.';
+        $_SESSION['flash_type'] = 'danger';
         header('Location: settings.php?error=1');
         exit;
     }
@@ -90,11 +123,11 @@ if (isset($_SESSION['settings_errors']) && is_array($_SESSION['settings_errors']
     unset($_SESSION['settings_errors']);
 }
 if (isset($_SESSION['settings_old']) && is_array($_SESSION['settings_old'])) {
-    $val_name   = htmlspecialchars($_SESSION['settings_old']['full_name'] ?? '', ENT_QUOTES);
+    $val_name         = htmlspecialchars($_SESSION['settings_old']['full_name'] ?? '', ENT_QUOTES);
     $val_district     = htmlspecialchars($_SESSION['settings_old']['district'] ?? '', ENT_QUOTES);
     $val_purokAddress = htmlspecialchars($_SESSION['settings_old']['purok_address'] ?? '', ENT_QUOTES);
-    $val_mobile = htmlspecialchars($_SESSION['settings_old']['mobile'] ?? '', ENT_QUOTES);
-    $val_email  = htmlspecialchars($_SESSION['settings_old']['email'] ?? '', ENT_QUOTES);
+    $val_mobile       = htmlspecialchars($_SESSION['settings_old']['mobile'] ?? '', ENT_QUOTES);
+    $val_email        = htmlspecialchars($_SESSION['settings_old']['email'] ?? '', ENT_QUOTES);
     unset($_SESSION['settings_old']);
 }
 
@@ -249,6 +282,13 @@ $districtOptions = [
                             <i class="bi bi-exclamation-triangle-fill me-2"></i>
                         <?php endif; ?>
                         <?php echo htmlspecialchars($submitMessage, ENT_QUOTES); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($errors['general'])): ?>
+                    <div class="alert alert-danger border border-danger rounded-1 py-3 mb-4" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <?php echo htmlspecialchars($errors['general'], ENT_QUOTES); ?>
                     </div>
                 <?php endif; ?>
 
