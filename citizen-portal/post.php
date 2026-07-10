@@ -24,13 +24,11 @@ if (!isset($_SESSION['user_id'])) {
 $errors = [];
 $val_title = '';
 $val_postType = '';
-$val_category = '';
 $val_description = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $val_title       = trim((string) ($_POST['title'] ?? ''));
     $val_postType    = trim((string) ($_POST['post_type'] ?? ''));
-    $val_category    = trim((string) ($_POST['category'] ?? ''));
     $val_description = trim((string) ($_POST['description'] ?? ''));
 
     if ($val_title === '') {
@@ -38,9 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (!in_array($val_postType, ['offer', 'request'], true)) {
         $errors['post_type'] = 'Please select a post type.';
-    }
-    if ($val_category === '') {
-        $errors['category'] = 'Please select a category.';
     }
     if ($val_description === '') {
         $errors['description'] = 'Please enter a service description.';
@@ -54,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'id'          => 'P-' . (count($_SESSION['my_posts']) + 1) . '-' . time(),
             'title'       => $val_title,
             'post_type'   => $val_postType,
-            'category'    => $val_category,
             'description' => $val_description,
             'status'      => 'Pending Verification',
             'timestamp'   => date('Y-m-d H:i:s'),
@@ -65,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } else {
         $_SESSION['post_errors']   = $errors;
-        $_SESSION['post_old']      = ['title' => $val_title, 'post_type' => $val_postType, 'category' => $val_category, 'description' => $val_description];
+        $_SESSION['post_old']      = ['title' => $val_title, 'post_type' => $val_postType, 'description' => $val_description];
         $_SESSION['flash_msg']     = 'Please correct the errors below and try again.';
         $_SESSION['flash_type']    = 'danger';
         header('Location: post.php?error=1');
@@ -92,22 +86,9 @@ if (isset($_SESSION['post_errors']) && is_array($_SESSION['post_errors'])) {
 if (isset($_SESSION['post_old']) && is_array($_SESSION['post_old'])) {
     $val_title       = $_SESSION['post_old']['title'] ?? '';
     $val_postType    = $_SESSION['post_old']['post_type'] ?? '';
-    $val_category    = $_SESSION['post_old']['category'] ?? '';
     $val_description = $_SESSION['post_old']['description'] ?? '';
     unset($_SESSION['post_old']);
 }
-
-// Mock category options
-$categoryOptions = [
-    'Skilled Trade',
-    'Education',
-    'Health',
-    'Food',
-    'Errands',
-    'Household',
-    'Family',
-    'Environment',
-];
 
 $userName = htmlspecialchars($_SESSION['user_name'] ?? 'Resident', ENT_QUOTES);
 $district     = htmlspecialchars($_SESSION['district'] ?? 'Unassigned District', ENT_QUOTES);
@@ -314,7 +295,7 @@ $purok        = $district . ($purokAddress !== '' ? ', ' . $purokAddress : '');
                         </div>
                         <div class="p-3">
                             <div class="row g-3 mb-3">
-                                <div class="col-12 col-md-7">
+                                <div class="col-12">
                                     <label for="title" class="form-label fw-semibold">Listing Title <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['title']) ? 'is-invalid' : ''; ?>"
                                         id="title" name="title"
@@ -324,22 +305,6 @@ $purok        = $district . ($purokAddress !== '' ? ', ' . $purokAddress : '');
                                         <div class="invalid-feedback"><?php echo $errors['title']; ?></div>
                                     <?php else: ?>
                                         <p class="form-text small text-secondary mb-0">Keep it short and descriptive.</p>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-5">
-                                    <label for="category" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-                                    <select class="form-select py-2 rounded-1 <?php echo isset($errors['category']) ? 'is-invalid' : ''; ?>"
-                                        id="category" name="category" required>
-                                        <option value="" selected disabled>Select a category</option>
-                                        <?php foreach ($categoryOptions as $cat): ?>
-                                            <option value="<?php echo htmlspecialchars($cat, ENT_QUOTES); ?>"
-                                                <?php echo ($val_category === $cat) ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($cat, ENT_QUOTES); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <?php if (isset($errors['category'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['category']; ?></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
