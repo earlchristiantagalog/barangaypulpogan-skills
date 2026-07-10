@@ -18,6 +18,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/../db.php';
+
 // ------------------------------------------------------------------------
 // 2. POST HANDLING — PRG pattern (Post / Redirect / Get)
 // ------------------------------------------------------------------------
@@ -42,21 +44,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        if (!isset($_SESSION['my_posts']) || !is_array($_SESSION['my_posts'])) {
-            $_SESSION['my_posts'] = [];
+        try {
+            $pdo  = getDB();
+            $postId = 'P-' . strtoupper(bin2hex(random_bytes(4))) . '-' . time();
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO posts (id, resident_id, post_type, title, description, status, created_at)
+                 VALUES (:id, :resident_id, :post_type, :title, :description, :status, NOW())'
+            );
+            $stmt->execute([
+                ':id'          => $postId,
+                ':resident_id' => $_SESSION['user_id'],
+                ':post_type'   => $val_postType,
+                ':title'       => $val_title,
+                ':description' => $val_description,
+                ':status'      => 'Pending Verification',
+            ]);
+
+            $_SESSION['flash_msg']  = 'Your post has been submitted successfully and is now under verification review.';
+            $_SESSION['flash_type'] = 'success';
+            header('Location: post.php?success=1');
+            exit;
+
+        } catch (Throwable $e) {
+            error_log('[POST_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
+            $errors['general'] = 'Failed to save your post. Please try again.';
         }
-        $_SESSION['my_posts'][] = [
-            'id'          => 'P-' . (count($_SESSION['my_posts']) + 1) . '-' . time(),
-            'title'       => $val_title,
-            'post_type'   => $val_postType,
-            'description' => $val_description,
-            'status'      => 'Pending Verification',
-            'timestamp'   => date('Y-m-d H:i:s'),
-        ];
-        $_SESSION['flash_msg']  = 'Your post has been submitted successfully and is now under verification review.';
-        $_SESSION['flash_type'] = 'success';
-        header('Location: post.php?success=1');
-        exit;
     } else {
         $_SESSION['post_errors']   = $errors;
         $_SESSION['post_old']      = ['title' => $val_title, 'post_type' => $val_postType, 'description' => $val_description];
@@ -239,6 +252,13 @@ $purok        = $district . ($purokAddress !== '' ? ', ' . $purokAddress : '');
                         <?php if ($submitSuccess): ?>
                             <a href="index.php" class="alert-link fw-semibold ms-2">Go to Dashboard</a>
                         <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($errors['general'])): ?>
+                    <div class="alert alert-danger border border-danger rounded-1 py-3 mb-4" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <?php echo htmlspecialchars($errors['general'], ENT_QUOTES); ?>
                     </div>
                 <?php endif; ?>
 

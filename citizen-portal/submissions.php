@@ -17,22 +17,38 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/../db.php';
+
 // ------------------------------------------------------------------------
-// 2. LOAD SUBMISSIONS + FLASH
+// 2. LOAD SUBMISSIONS FROM DATABASE + FLASH
 // ------------------------------------------------------------------------
-$myPosts = (isset($_SESSION['my_posts']) && is_array($_SESSION['my_posts']))
-    ? $_SESSION['my_posts']
-    : [];
-$totalPosts    = count($myPosts);
+$myPosts = [];
+$totalPosts    = 0;
 $pendingPosts  = 0;
 $approvedPosts = 0;
-foreach ($myPosts as $p) {
-    $st = $p['status'] ?? '';
-    if ($st === 'Pending Verification') {
-        $pendingPosts++;
-    } elseif ($st === 'Published' || $st === 'Approved') {
-        $approvedPosts++;
+
+try {
+    $pdo  = getDB();
+    $stmt = $pdo->prepare(
+        'SELECT id, post_type, title, status, created_at
+         FROM posts
+         WHERE resident_id = :rid
+         ORDER BY created_at DESC'
+    );
+    $stmt->execute([':rid' => $_SESSION['user_id']]);
+    $myPosts = $stmt->fetchAll();
+
+    $totalPosts = count($myPosts);
+    foreach ($myPosts as $p) {
+        $st = $p['status'] ?? '';
+        if ($st === 'Pending Verification') {
+            $pendingPosts++;
+        } elseif ($st === 'Verified') {
+            $approvedPosts++;
+        }
     }
+} catch (Throwable $e) {
+    error_log('[SUBMISSIONS_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
 }
 
 $submitMessage = '';
@@ -236,13 +252,12 @@ $purok        = $district . ($purokAddress !== '' ? ', ' . $purokAddress : '');
                                         <tr>
                                             <th scope="col" class="small text-uppercase">Title</th>
                                             <th scope="col" class="small text-uppercase">Type</th>
-                                            <th scope="col" class="small text-uppercase">Category</th>
                                             <th scope="col" class="small text-uppercase">Status</th>
                                             <th scope="col" class="small text-uppercase">Posted</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach (array_reverse($myPosts) as $post): ?>
+                                        <?php foreach ($myPosts as $post): ?>
                                             <?php
                                                 $isOffer = ($post['post_type'] ?? '') === 'offer';
                                                 $typeBadge = $isOffer ? 'bg-success' : 'bg-primary';
@@ -253,9 +268,8 @@ $purok        = $district . ($purokAddress !== '' ? ', ' . $purokAddress : '');
                                             <tr>
                                                 <td class="fw-semibold"><?php echo htmlspecialchars($post['title'] ?? '', ENT_QUOTES); ?></td>
                                                 <td><span class="badge <?php echo $typeBadge; ?> rounded-1"><?php echo $typeLabel; ?></span></td>
-                                                <td class="small"><?php echo htmlspecialchars($post['category'] ?? '', ENT_QUOTES); ?></td>
                                                 <td><span class="badge <?php echo $statusBadge; ?> rounded-1"><?php echo htmlspecialchars($status, ENT_QUOTES); ?></span></td>
-                                                <td class="small text-secondary"><?php echo htmlspecialchars($post['timestamp'] ?? '', ENT_QUOTES); ?></td>
+                                                <td class="small text-secondary"><?php echo htmlspecialchars($post['created_at'] ?? '', ENT_QUOTES); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>

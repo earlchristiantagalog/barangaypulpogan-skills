@@ -104,6 +104,21 @@ function getDB(): PDO {
             $pdo->exec("ALTER TABLE residents DROP COLUMN purok");
         }
 
+        // Create posts table if it does not exist
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS posts (
+                id          VARCHAR(30)  NOT NULL PRIMARY KEY,
+                resident_id VARCHAR(20)  NOT NULL,
+                post_type   ENUM('offer','request') NOT NULL,
+                title       VARCHAR(150) NOT NULL,
+                description TEXT         NOT NULL,
+                status      ENUM('Pending Verification','Verified','Rejected') NOT NULL DEFAULT 'Pending Verification',
+                created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_resident (resident_id),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
         return $pdo;
 
     } catch (PDOException $e) {
