@@ -25,7 +25,7 @@ if (file_exists(__DIR__ . '/../db_settings.php')) {
     require_once __DIR__ . '/../db_settings.php';
 }
 
-$isITOfficer = (($_SESSION['role'] ?? '') === 'it_officer');
+$isITOfficer = (($_SESSION['role'] ?? '') === 'it officer');
 
 // ------------------------------------------------------------------------
 // 2. POST HANDLING — PRG pattern
@@ -133,82 +133,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // PROFILE UPDATE
     // ============================================================
     if ($formType === 'profile') {
-    $newName         = trim((string) ($_POST['full_name'] ?? ''));
-    $newDistrict     = trim((string) ($_POST['district'] ?? ''));
-    $newPurokAddress = trim((string) ($_POST['purok_address'] ?? ''));
-    $newMobile       = trim((string) ($_POST['mobile'] ?? ''));
-    $newEmail        = trim((string) ($_POST['email'] ?? ''));
+        $newName         = trim((string) ($_POST['full_name'] ?? ''));
+        $newDistrict     = trim((string) ($_POST['district'] ?? ''));
+        $newPurokAddress = trim((string) ($_POST['purok_address'] ?? ''));
+        $newMobile       = trim((string) ($_POST['mobile'] ?? ''));
+        $newEmail        = trim((string) ($_POST['email'] ?? ''));
 
-    if ($newName === '' || mb_strlen($newName, 'UTF-8') < 2) {
-        $errors['full_name'] = 'Please enter your full name (min. 2 characters).';
-    }
-    if ($newDistrict === '') {
-        $errors['district'] = 'Please select your district.';
-    }
-    if ($newPurokAddress === '' || mb_strlen($newPurokAddress, 'UTF-8') < 3) {
-        $errors['purok_address'] = 'Please enter your purok or street address (min. 3 characters).';
-    }
-    if (!preg_match('/^09[0-9]{9}$/', $newMobile) && !preg_match('/^\+63[0-9]{10}$/', $newMobile)) {
-        $errors['mobile'] = 'Enter a valid Philippine mobile number (09XXXXXXXXX).';
-    }
-    if (!filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = 'Please enter a valid email address.';
-    }
+        if ($newName === '' || mb_strlen($newName, 'UTF-8') < 2) {
+            $errors['full_name'] = 'Please enter your full name (min. 2 characters).';
+        }
+        if ($newDistrict === '') {
+            $errors['district'] = 'Please select your district.';
+        }
+        if ($newPurokAddress === '' || mb_strlen($newPurokAddress, 'UTF-8') < 3) {
+            $errors['purok_address'] = 'Please enter your purok or street address (min. 3 characters).';
+        }
+        if (!preg_match('/^09[0-9]{9}$/', $newMobile) && !preg_match('/^\+63[0-9]{10}$/', $newMobile)) {
+            $errors['mobile'] = 'Enter a valid Philippine mobile number (09XXXXXXXXX).';
+        }
+        if (!filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Please enter a valid email address.';
+        }
 
-    if (empty($errors)) {
-        try {
-            $pdo  = getDB();
-            $stmt = $pdo->prepare(
-                'UPDATE residents
+        if (empty($errors)) {
+            try {
+                $pdo  = getDB();
+                $stmt = $pdo->prepare(
+                    'UPDATE residents
                  SET full_name = :name, district = :district, purok_address = :purok_address,
                      mobile = :mobile, email = :email
                  WHERE id = :id'
-            );
-            $stmt->execute([
-                ':name'          => $newName,
-                ':district'      => $newDistrict,
-                ':purok_address' => $newPurokAddress,
-                ':mobile'        => $newMobile,
-                ':email'         => $newEmail,
-                ':id'            => $_SESSION['user_id'],
-            ]);
+                );
+                $stmt->execute([
+                    ':name'          => $newName,
+                    ':district'      => $newDistrict,
+                    ':purok_address' => $newPurokAddress,
+                    ':mobile'        => $newMobile,
+                    ':email'         => $newEmail,
+                    ':id'            => $_SESSION['user_id'],
+                ]);
 
-            $_SESSION['user_name']     = $newName;
-            $_SESSION['district']      = $newDistrict;
-            $_SESSION['purok_address'] = $newPurokAddress;
-            $_SESSION['mobile']        = $newMobile;
-            $_SESSION['email']         = $newEmail;
+                $_SESSION['user_name']     = $newName;
+                $_SESSION['district']      = $newDistrict;
+                $_SESSION['purok_address'] = $newPurokAddress;
+                $_SESSION['mobile']        = $newMobile;
+                $_SESSION['email']         = $newEmail;
 
-            $_SESSION['flash_msg']  = 'Profile updated successfully.';
-            $_SESSION['flash_type'] = 'success';
-            header('Location: settings.php?success=1');
-            exit;
-
-        } catch (Throwable $e) {
-            error_log('[OFFICER_SETTINGS_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
-            $errors['general'] = 'Failed to save changes. Please try again.';
+                $_SESSION['flash_msg']  = 'Profile updated successfully.';
+                $_SESSION['flash_type'] = 'success';
+                header('Location: settings.php?success=1');
+                exit;
+            } catch (Throwable $e) {
+                error_log('[OFFICER_SETTINGS_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
+                $errors['general'] = 'Failed to save changes. Please try again.';
+            }
         }
-    }
 
-    if (!empty($errors)) {
-        $val_name      = htmlspecialchars($newName, ENT_QUOTES);
-        $val_district  = htmlspecialchars($newDistrict, ENT_QUOTES);
-        $val_purokAddr = htmlspecialchars($newPurokAddress, ENT_QUOTES);
-        $val_mobile    = htmlspecialchars($newMobile, ENT_QUOTES);
-        $val_email     = htmlspecialchars($newEmail, ENT_QUOTES);
-        $_SESSION['settings_errors'] = $errors;
-        $_SESSION['settings_old']    = [
-            'full_name'     => $newName,
-            'district'      => $newDistrict,
-            'purok_address' => $newPurokAddress,
-            'mobile'        => $newMobile,
-            'email'         => $newEmail,
-        ];
-        $_SESSION['flash_msg']  = 'Please correct the errors below.';
-        $_SESSION['flash_type'] = 'danger';
-        header('Location: settings.php?error=1');
-        exit;
-    }
+        if (!empty($errors)) {
+            $val_name      = htmlspecialchars($newName, ENT_QUOTES);
+            $val_district  = htmlspecialchars($newDistrict, ENT_QUOTES);
+            $val_purokAddr = htmlspecialchars($newPurokAddress, ENT_QUOTES);
+            $val_mobile    = htmlspecialchars($newMobile, ENT_QUOTES);
+            $val_email     = htmlspecialchars($newEmail, ENT_QUOTES);
+            $_SESSION['settings_errors'] = $errors;
+            $_SESSION['settings_old']    = [
+                'full_name'     => $newName,
+                'district'      => $newDistrict,
+                'purok_address' => $newPurokAddress,
+                'mobile'        => $newMobile,
+                'email'         => $newEmail,
+            ];
+            $_SESSION['flash_msg']  = 'Please correct the errors below.';
+            $_SESSION['flash_type'] = 'danger';
+            header('Location: settings.php?error=1');
+            exit;
+        }
     } // end profile form type
 }
 
@@ -234,8 +233,13 @@ if (isset($_SESSION['settings_old']) && is_array($_SESSION['settings_old'])) {
 }
 
 $districtOptions = [
-    'District 1', 'District 2', 'District 3',
-    'District 4', 'District 5', 'District 6', 'District 7',
+    'District 1',
+    'District 2',
+    'District 3',
+    'District 4',
+    'District 5',
+    'District 6',
+    'District 7',
 ];
 ?>
 <!DOCTYPE html>
@@ -286,9 +290,13 @@ $districtOptions = [
                                     <span class="text-secondary"><?php echo $val_district . ($val_purokAddr !== '' ? ', ' . $val_purokAddr : ''); ?></span>
                                 </span>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="index.php"><i class="bi bi-grid-3x3-gap me-2"></i>Dashboard</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item text-danger" href="index.php?action=logout"><i class="bi bi-box-arrow-right me-2"></i>Log Out</a></li>
                         </ul>
                     </div>
@@ -491,147 +499,147 @@ $districtOptions = [
                 </form>
 
                 <?php if ($isITOfficer): ?>
-                <!-- ============================================================
+                    <!-- ============================================================
                      IT OFFICER ONLY: SYSTEM CONFIGURATION
                      ============================================================ -->
 
-                <!-- Section: Database Configuration -->
-                <form method="POST" action="settings.php" novalidate>
-                    <input type="hidden" name="form_type" value="db_config">
-                    <div class="border border-secondary-subtle rounded-1 bg-white mb-4">
-                        <div class="bg-light border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center">
-                            <h3 class="h6 fw-bold mb-0">
-                                <i class="bi bi-database me-2"></i>Database Configuration (MySQL)
-                            </h3>
-                            <span class="badge bg-dark rounded-1">IT Officer Only</span>
-                        </div>
-                        <div class="p-3">
-                            <div class="row g-3">
-                                <div class="col-12 col-md-6">
-                                    <label for="dbHost" class="form-label fw-semibold">Host</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_host']) ? 'is-invalid' : ''; ?>"
-                                        id="dbHost" name="db_host"
-                                        value="<?php echo $val_dbHost; ?>" required>
-                                    <?php if (isset($errors['db_host'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['db_host']; ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="dbPort" class="form-label fw-semibold">Port</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_port']) ? 'is-invalid' : ''; ?>"
-                                        id="dbPort" name="db_port"
-                                        value="<?php echo $val_dbPort; ?>" required>
-                                    <?php if (isset($errors['db_port'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['db_port']; ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="dbName" class="form-label fw-semibold">Database Name</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_name']) ? 'is-invalid' : ''; ?>"
-                                        id="dbName" name="db_name"
-                                        value="<?php echo $val_dbName; ?>" required>
-                                    <?php if (isset($errors['db_name'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['db_name']; ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="dbUser" class="form-label fw-semibold">Username</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_user']) ? 'is-invalid' : ''; ?>"
-                                        id="dbUser" name="db_user"
-                                        value="<?php echo $val_dbUser; ?>" required>
-                                    <?php if (isset($errors['db_user'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['db_user']; ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12">
-                                    <label for="dbPass" class="form-label fw-semibold">Password</label>
-                                    <input type="password" class="form-control py-2 rounded-1"
-                                        id="dbPass" name="db_pass"
-                                        placeholder="Leave blank to keep current password">
-                                    <p class="form-text small text-secondary mb-0">Leave blank to keep the existing password.</p>
+                    <!-- Section: Database Configuration -->
+                    <form method="POST" action="settings.php" novalidate>
+                        <input type="hidden" name="form_type" value="db_config">
+                        <div class="border border-secondary-subtle rounded-1 bg-white mb-4">
+                            <div class="bg-light border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center">
+                                <h3 class="h6 fw-bold mb-0">
+                                    <i class="bi bi-database me-2"></i>Database Configuration (MySQL)
+                                </h3>
+                                <span class="badge bg-dark rounded-1">IT Officer Only</span>
+                            </div>
+                            <div class="p-3">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label for="dbHost" class="form-label fw-semibold">Host</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_host']) ? 'is-invalid' : ''; ?>"
+                                            id="dbHost" name="db_host"
+                                            value="<?php echo $val_dbHost; ?>" required>
+                                        <?php if (isset($errors['db_host'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['db_host']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="dbPort" class="form-label fw-semibold">Port</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_port']) ? 'is-invalid' : ''; ?>"
+                                            id="dbPort" name="db_port"
+                                            value="<?php echo $val_dbPort; ?>" required>
+                                        <?php if (isset($errors['db_port'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['db_port']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="dbName" class="form-label fw-semibold">Database Name</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_name']) ? 'is-invalid' : ''; ?>"
+                                            id="dbName" name="db_name"
+                                            value="<?php echo $val_dbName; ?>" required>
+                                        <?php if (isset($errors['db_name'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['db_name']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="dbUser" class="form-label fw-semibold">Username</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['db_user']) ? 'is-invalid' : ''; ?>"
+                                            id="dbUser" name="db_user"
+                                            value="<?php echo $val_dbUser; ?>" required>
+                                        <?php if (isset($errors['db_user'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['db_user']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="dbPass" class="form-label fw-semibold">Password</label>
+                                        <input type="password" class="form-control py-2 rounded-1"
+                                            id="dbPass" name="db_pass"
+                                            placeholder="Leave blank to keep current password">
+                                        <p class="form-text small text-secondary mb-0">Leave blank to keep the existing password.</p>
+                                    </div>
                                 </div>
                             </div>
+                            <div class="bg-light border-top border-secondary-subtle px-3 py-2">
+                                <button type="submit" class="btn btn-dark rounded-1 py-1 px-3 fw-semibold small">
+                                    <i class="bi bi-save me-1"></i>Save Database Config
+                                </button>
+                            </div>
                         </div>
-                        <div class="bg-light border-top border-secondary-subtle px-3 py-2">
-                            <button type="submit" class="btn btn-dark rounded-1 py-1 px-3 fw-semibold small">
-                                <i class="bi bi-save me-1"></i>Save Database Config
-                            </button>
-                        </div>
-                    </div>
-                </form>
+                    </form>
 
-                <!-- Section: Pusher Configuration -->
-                <form method="POST" action="settings.php" novalidate>
-                    <input type="hidden" name="form_type" value="pusher_config">
-                    <div class="border border-secondary-subtle rounded-1 bg-white mb-4">
-                        <div class="bg-light border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center">
-                            <h3 class="h6 fw-bold mb-0">
-                                <i class="bi bi-broadcast me-2"></i>Pusher Configuration
-                            </h3>
-                            <span class="badge bg-dark rounded-1">IT Officer Only</span>
-                        </div>
-                        <div class="p-3">
-                            <div class="row g-3">
-                                <div class="col-12 col-md-6">
-                                    <label for="pusherAppId" class="form-label fw-semibold">App ID</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['pusher_app_id']) ? 'is-invalid' : ''; ?>"
-                                        id="pusherAppId" name="pusher_app_id"
-                                        value="<?php echo $val_pusherAppId; ?>" required>
-                                    <?php if (isset($errors['pusher_app_id'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['pusher_app_id']; ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="pusherKey" class="form-label fw-semibold">Key</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['pusher_key']) ? 'is-invalid' : ''; ?>"
-                                        id="pusherKey" name="pusher_key"
-                                        value="<?php echo $val_pusherKey; ?>" required>
-                                    <?php if (isset($errors['pusher_key'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['pusher_key']; ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="pusherSecret" class="form-label fw-semibold">Secret</label>
-                                    <input type="password" class="form-control py-2 rounded-1"
-                                        id="pusherSecret" name="pusher_secret"
-                                        placeholder="Leave blank to keep current secret">
-                                    <p class="form-text small text-secondary mb-0">Leave blank to keep the existing secret.</p>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="pusherCluster" class="form-label fw-semibold">Cluster</label>
-                                    <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['pusher_cluster']) ? 'is-invalid' : ''; ?>"
-                                        id="pusherCluster" name="pusher_cluster"
-                                        value="<?php echo $val_pusherCluster; ?>" required>
-                                    <?php if (isset($errors['pusher_cluster'])): ?>
-                                        <div class="invalid-feedback"><?php echo $errors['pusher_cluster']; ?></div>
-                                    <?php endif; ?>
+                    <!-- Section: Pusher Configuration -->
+                    <form method="POST" action="settings.php" novalidate>
+                        <input type="hidden" name="form_type" value="pusher_config">
+                        <div class="border border-secondary-subtle rounded-1 bg-white mb-4">
+                            <div class="bg-light border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center">
+                                <h3 class="h6 fw-bold mb-0">
+                                    <i class="bi bi-broadcast me-2"></i>Pusher Configuration
+                                </h3>
+                                <span class="badge bg-dark rounded-1">IT Officer Only</span>
+                            </div>
+                            <div class="p-3">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label for="pusherAppId" class="form-label fw-semibold">App ID</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['pusher_app_id']) ? 'is-invalid' : ''; ?>"
+                                            id="pusherAppId" name="pusher_app_id"
+                                            value="<?php echo $val_pusherAppId; ?>" required>
+                                        <?php if (isset($errors['pusher_app_id'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['pusher_app_id']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="pusherKey" class="form-label fw-semibold">Key</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['pusher_key']) ? 'is-invalid' : ''; ?>"
+                                            id="pusherKey" name="pusher_key"
+                                            value="<?php echo $val_pusherKey; ?>" required>
+                                        <?php if (isset($errors['pusher_key'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['pusher_key']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="pusherSecret" class="form-label fw-semibold">Secret</label>
+                                        <input type="password" class="form-control py-2 rounded-1"
+                                            id="pusherSecret" name="pusher_secret"
+                                            placeholder="Leave blank to keep current secret">
+                                        <p class="form-text small text-secondary mb-0">Leave blank to keep the existing secret.</p>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="pusherCluster" class="form-label fw-semibold">Cluster</label>
+                                        <input type="text" class="form-control py-2 rounded-1 <?php echo isset($errors['pusher_cluster']) ? 'is-invalid' : ''; ?>"
+                                            id="pusherCluster" name="pusher_cluster"
+                                            value="<?php echo $val_pusherCluster; ?>" required>
+                                        <?php if (isset($errors['pusher_cluster'])): ?>
+                                            <div class="invalid-feedback"><?php echo $errors['pusher_cluster']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
+                            <div class="bg-light border-top border-secondary-subtle px-3 py-2">
+                                <button type="submit" class="btn btn-dark rounded-1 py-1 px-3 fw-semibold small">
+                                    <i class="bi bi-save me-1"></i>Save Pusher Config
+                                </button>
+                            </div>
                         </div>
-                        <div class="bg-light border-top border-secondary-subtle px-3 py-2">
-                            <button type="submit" class="btn btn-dark rounded-1 py-1 px-3 fw-semibold small">
-                                <i class="bi bi-save me-1"></i>Save Pusher Config
-                            </button>
-                        </div>
-                    </div>
-                </form>
+                    </form>
 
                 <?php else: ?>
-                <!-- Non-IT Officer: read-only config display -->
-                <div class="border border-secondary-subtle rounded-1 bg-light mb-4">
-                    <div class="px-3 py-2">
-                        <h3 class="h6 fw-bold mb-0">
-                            <i class="bi bi-lock me-2"></i>System Configuration
-                        </h3>
+                    <!-- Non-IT Officer: read-only config display -->
+                    <div class="border border-secondary-subtle rounded-1 bg-light mb-4">
+                        <div class="px-3 py-2">
+                            <h3 class="h6 fw-bold mb-0">
+                                <i class="bi bi-lock me-2"></i>System Configuration
+                            </h3>
+                        </div>
+                        <div class="p-3">
+                            <p class="small text-secondary mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Database and Pusher configuration can only be edited by an <strong>IT Officer</strong>.
+                                Contact your system administrator for access.
+                            </p>
+                        </div>
                     </div>
-                    <div class="p-3">
-                        <p class="small text-secondary mb-0">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Database and Pusher configuration can only be edited by an <strong>IT Officer</strong>.
-                            Contact your system administrator for access.
-                        </p>
-                    </div>
-                </div>
                 <?php endif; ?>
 
                 <!-- Data privacy -->

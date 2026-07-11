@@ -79,7 +79,7 @@ function getDB(): PDO {
                 mobile        VARCHAR(15)  NOT NULL,
                 email         VARCHAR(254) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
-                role          ENUM('citizen','officer','it_officer') NOT NULL DEFAULT 'citizen',
+                role          ENUM('citizen','officer','it officer') NOT NULL DEFAULT 'citizen',
                 created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_email (email),
                 INDEX idx_role (role)
@@ -118,7 +118,7 @@ function getDB(): PDO {
 
         // Add 'role' column if missing
         if (!in_array('role', $columns, true)) {
-            $pdo->exec("ALTER TABLE residents ADD COLUMN role ENUM('citizen','officer','it_officer') NOT NULL DEFAULT 'citizen' AFTER password_hash");
+            $pdo->exec("ALTER TABLE residents ADD COLUMN role ENUM('citizen','officer','it officer') NOT NULL DEFAULT 'citizen' AFTER password_hash");
         } else {
             // Update role enum to include 'it_officer' if missing
             $roleCol = null;
@@ -128,8 +128,8 @@ function getDB(): PDO {
                     break;
                 }
             }
-            if ($roleCol && strpos($roleCol['Type'], 'it_officer') === false) {
-                $pdo->exec("ALTER TABLE residents MODIFY COLUMN role ENUM('citizen','officer','it_officer') NOT NULL DEFAULT 'citizen'");
+            if ($roleCol && strpos($roleCol['Type'], 'it officer') === false) {
+                $pdo->exec("ALTER TABLE residents MODIFY COLUMN role ENUM('citizen','officer','it officer') NOT NULL DEFAULT 'citizen'");
             }
         }
 
