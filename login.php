@@ -29,7 +29,7 @@ session_start();
 // 1. SESSION FIXATION PREVENTION — redirect if already authenticated
 // ========================================================================
 if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== '') {
-    $redirectPath = ($_SESSION['role'] ?? 'citizen') === 'officer'
+    $redirectPath = in_array(($_SESSION['role'] ?? 'citizen'), ['officer', 'it officer'], true)
         ? 'officers-portal/'
         : 'citizen-portal/';
     header('Location: ' . $redirectPath);
@@ -390,7 +390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['email']          = $user['email'];
                             $_SESSION['role']           = $user['role'] ?? 'citizen';
 
-                            $redirectPath = ($_SESSION['role'] === 'officer')
+                            $redirectPath = in_array($_SESSION['role'], ['officer', 'it officer'], true)
                                 ? 'officers-portal/'
                                 : 'citizen-portal/';
 
