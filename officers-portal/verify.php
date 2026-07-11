@@ -12,7 +12,7 @@
 // ------------------------------------------------------------------------
 session_start();
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? 'citizen') !== 'officer') {
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['officer', 'it officer'], true)) {
     header('Location: ../login.php?action=login');
     exit;
 }
