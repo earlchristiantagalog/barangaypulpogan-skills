@@ -20,6 +20,11 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? 'citizen') !== 'office
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../pusher_config.php';
 
+// Load DB settings directly for config display
+if (file_exists(__DIR__ . '/../db_settings.php')) {
+    require_once __DIR__ . '/../db_settings.php';
+}
+
 $isITOfficer = (($_SESSION['role'] ?? '') === 'it_officer');
 
 // ------------------------------------------------------------------------
@@ -33,11 +38,11 @@ $val_purokAddr   = htmlspecialchars($_SESSION['purok_address'] ?? '', ENT_QUOTES
 $val_mobile      = htmlspecialchars($_SESSION['mobile'] ?? '09XXXXXXXXX', ENT_QUOTES);
 $val_email       = htmlspecialchars($_SESSION['email'] ?? 'officer@example.gov.ph', ENT_QUOTES);
 
-// Config section values
-$val_dbHost = DB_HOST;
-$val_dbPort = DB_PORT;
-$val_dbName = DB_NAME;
-$val_dbUser = DB_USER;
+// Config section values — use constants if defined, else fallback
+$val_dbHost = defined('DB_HOST') ? DB_HOST : 'localhost';
+$val_dbPort = defined('DB_PORT') ? DB_PORT : '3306';
+$val_dbName = defined('DB_NAME') ? DB_NAME : 'barangay_pulpogan_bayanihan';
+$val_dbUser = defined('DB_USER') ? DB_USER : 'root';
 $val_dbPass = '';
 $val_pusherAppId    = PUSHER_APP_ID;
 $val_pusherKey      = PUSHER_KEY;
