@@ -26,6 +26,17 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../pusher_config.php';
+
+// Load announcements
+$announcements = [];
+try {
+    $pdo = getDB();
+    $stmt = $pdo->query('SELECT id, title, body, author_name, created_at FROM announcements ORDER BY created_at DESC LIMIT 5');
+    $announcements = $stmt->fetchAll();
+} catch (Throwable $e) {
+    error_log('[DASHBOARD_ANN_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
+}
 
 // ------------------------------------------------------------------------
 // 2. DERIVED METRICS
@@ -263,6 +274,31 @@ $announcements = [
                     </div>
                 <?php endforeach; ?>
 
+                <!-- Announcements -->
+                <section id="announcements-section" class="card rounded-1 border border-secondary-subtle bg-white mb-4">
+                    <div class="card-header bg-light border-bottom border-secondary-subtle">
+                        <h2 class="h6 fw-bold mb-0">
+                            <i class="bi bi-megaphone me-2"></i>Announcements & Updates
+                        </h2>
+                    </div>
+                    <div class="card-body" id="announcements-list">
+                        <?php if (empty($announcements)): ?>
+                            <p class="text-secondary small mb-0" id="no-announcements">No announcements at this time.</p>
+                        <?php else: ?>
+                            <?php foreach ($announcements as $ann): ?>
+                                <div class="border border-secondary-subtle rounded-1 p-3 mb-2 announcement-item">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <h4 class="h6 fw-bold mb-0"><?php echo htmlspecialchars($ann['title'], ENT_QUOTES); ?></h4>
+                                        <span class="small text-secondary"><?php echo htmlspecialchars($ann['created_at'], ENT_QUOTES); ?></span>
+                                    </div>
+                                    <p class="small text-secondary mb-1"><?php echo nl2br(htmlspecialchars($ann['body'], ENT_QUOTES)); ?></p>
+                                    <p class="small text-secondary mb-0"><i class="bi bi-person me-1"></i><?php echo htmlspecialchars($ann['author_name'], ENT_QUOTES); ?></p>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </section>
+
                 <!-- My Active Submissions panel -->
                 <section id="submissions" class="card rounded-1 border border-secondary-subtle bg-white mb-4">
                     <div class="card-header bg-light border-bottom border-secondary-subtle">
@@ -320,6 +356,74 @@ $announcements = [
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        (function() {
+            var PUSHER_KEY = '<?php echo htmlspecialchars(PUSHER_KEY, ENT_QUOTES); ?>';
+            var PUSHER_CLUSTER = '<?php echo htmlspecialchars(PUSHER_CLUSTER, ENT_QUOTES); ?>';
+            var USER_ID = '<?php echo htmlspecialchars($_SESSION['user_id'] ?? '', ENT_QUOTES); ?>';
+            var CHANNEL_PREFIX = '<?php echo htmlspecialchars(PUSHER_CHANNEL_PREFIX, ENT_QUOTES); ?>';
+
+            if (PUSHER_KEY === 'YOUR_APP_KEY') return;
+
+            var pusher = new Pusher(PUSHER_KEY, {
+                cluster: PUSHER_CLUSTER,
+                encrypted: true
+            });
+
+            // Listen for post status updates (private channel for this user only)
+            var userChannel = pusher.subscribe(CHANNEL_PREFIX + '-user-' + USER_ID);
+            userChannel.bind('post-status-updated', function(data) {
+                showToast(data.message || 'Your post status has been updated.', 'info');
+                setTimeout(function() { location.reload(); }, 2000);
+            });
+
+            // Listen for announcements (public channel)
+            var allChannel = pusher.subscribe(CHANNEL_PREFIX + '-all');
+            allChannel.bind('new-announcement', function(data) {
+                var list = document.getElementById('announcements-list');
+                var noAnn = document.getElementById('no-announcements');
+                if (noAnn) noAnn.remove();
+
+                var div = document.createElement('div');
+                div.className = 'border border-secondary-subtle rounded-1 p-3 mb-2 announcement-item';
+                div.style.background = '#fff3cd';
+                div.innerHTML =
+                    '<div class="d-flex justify-content-between align-items-start mb-1">' +
+                        '<h4 class="h6 fw-bold mb-0">' + escapeHtml(data.title) + '</h4>' +
+                        '<span class="small text-secondary">' + escapeHtml(data.timestamp) + '</span>' +
+                    '</div>' +
+                    '<p class="small text-secondary mb-1">' + escapeHtml(data.body) + '</p>' +
+                    '<p class="small text-secondary mb-0"><i class="bi bi-person me-1"></i>' + escapeHtml(data.author) + '</p>';
+                list.insertBefore(div, list.firstChild);
+                showToast('New announcement: ' + data.title, 'warning');
+            });
+
+            function showToast(message, type) {
+                var container = document.getElementById('toast-container') || createToastContainer();
+                var toast = document.createElement('div');
+                toast.className = 'alert alert-' + type + ' border border-' + type + ' rounded-1 py-2 px-3 mb-2 small';
+                toast.setAttribute('role', 'alert');
+                toast.innerHTML = '<i class="bi bi-info-circle me-2"></i>' + escapeHtml(message);
+                container.appendChild(toast);
+                setTimeout(function() { toast.remove(); }, 5000);
+            }
+
+            function createToastContainer() {
+                var c = document.createElement('div');
+                c.id = 'toast-container';
+                c.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;width:320px;';
+                document.body.appendChild(c);
+                return c;
+            }
+
+            function escapeHtml(str) {
+                var div = document.createElement('div');
+                div.appendChild(document.createTextNode(str || ''));
+                return div.innerHTML;
+            }
+        })();
+    </script>
 </body>
 
 </html>

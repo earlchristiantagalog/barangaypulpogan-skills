@@ -25,6 +25,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? 'citizen') !== 'office
 }
 
 require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../pusher_config.php';
 
 // ------------------------------------------------------------------------
 // 2. LOAD DASHBOARD METRICS
@@ -76,21 +77,14 @@ try {
     error_log('[OFFICERS_DASH_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
 }
 
-// Mock announcements
-$announcements = [
-    [
-        'title'  => 'New Officer Duty Schedule Posted',
-        'body'   => 'The updated verification duty schedule for July 2026 is now available. Please check your assigned shifts.',
-        'date'   => '2026-07-10',
-        'author' => 'Barangay Captain',
-    ],
-    [
-        'title'  => 'Community Clean-Up Drive — July 20, 2026',
-        'body'   => 'All officers are requested to assist in coordinating the scheduled community clean-up across all districts.',
-        'date'   => '2026-07-08',
-        'author' => 'Barangay Secretary',
-    ],
-];
+// Load announcements from DB
+$announcements = [];
+try {
+    $stmt = $pdo->query('SELECT id, title, body, author_name, created_at FROM announcements ORDER BY created_at DESC LIMIT 5');
+    $announcements = $stmt->fetchAll();
+} catch (Throwable $e) {
+    error_log('[OFFICERS_ANN_ERROR] ' . date('Y-m-d H:i:s') . ' — ' . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -186,6 +180,12 @@ $announcements = [
                         </a>
                     </li>
                     <li class="nav-item mb-3">
+                        <a href="announcements.php" class="nav-link p-0 text-dark text-decoration-none d-flex align-items-center border-start border-3 border-transparent ps-2">
+                            <i class="bi bi-megaphone fs-3 me-3 text-dark"></i>
+                            <span class="fw-bold text-uppercase small">Announcements</span>
+                        </a>
+                    </li>
+                    <li class="nav-item mb-3">
                         <a href="settings.php" class="nav-link p-0 text-dark text-decoration-none d-flex align-items-center border-start border-3 border-transparent ps-2">
                             <i class="bi bi-gear-fill fs-3 me-3 text-dark"></i>
                             <span class="fw-bold text-uppercase small">Settings</span>
@@ -246,16 +246,16 @@ $announcements = [
                     </div>
                     <div class="p-3">
                         <?php if (empty($announcements)): ?>
-                            <p class="text-secondary small mb-0">No announcements at this time.</p>
+                            <p class="text-secondary small mb-0">No announcements yet. <a href="announcements.php" class="fw-semibold">Create one</a>.</p>
                         <?php else: ?>
                             <?php foreach ($announcements as $ann): ?>
                                 <div class="border border-secondary-subtle rounded-1 p-3 mb-2 <?php echo $ann !== end($announcements) ? 'mb-3' : ''; ?>">
                                     <div class="d-flex justify-content-between align-items-start mb-1">
                                         <h4 class="h6 fw-bold mb-0"><?php echo htmlspecialchars($ann['title'], ENT_QUOTES); ?></h4>
-                                        <span class="small text-secondary"><?php echo htmlspecialchars($ann['date'], ENT_QUOTES); ?></span>
+                                        <span class="small text-secondary"><?php echo htmlspecialchars($ann['created_at'], ENT_QUOTES); ?></span>
                                     </div>
                                     <p class="small text-secondary mb-0"><?php echo htmlspecialchars($ann['body'], ENT_QUOTES); ?></p>
-                                    <p class="small text-secondary mb-0 mt-1"><i class="bi bi-person me-1"></i><?php echo htmlspecialchars($ann['author'], ENT_QUOTES); ?></p>
+                                    <p class="small text-secondary mb-0 mt-1"><i class="bi bi-person me-1"></i><?php echo htmlspecialchars($ann['author_name'], ENT_QUOTES); ?></p>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -330,6 +330,46 @@ $announcements = [
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        (function() {
+            var PUSHER_KEY = '<?php echo htmlspecialchars(PUSHER_KEY, ENT_QUOTES); ?>';
+            var PUSHER_CLUSTER = '<?php echo htmlspecialchars(PUSHER_CLUSTER, ENT_QUOTES); ?>';
+            var CHANNEL_PREFIX = '<?php echo htmlspecialchars(PUSHER_CHANNEL_PREFIX, ENT_QUOTES); ?>';
+
+            if (PUSHER_KEY === 'YOUR_APP_KEY') return;
+
+            var pusher = new Pusher(PUSHER_KEY, {
+                cluster: PUSHER_CLUSTER,
+                encrypted: true
+            });
+
+            var allChannel = pusher.subscribe(CHANNEL_PREFIX + '-all');
+            allChannel.bind('new-announcement', function(data) {
+                var list = document.getElementById('announcements-list');
+                var noAnn = document.getElementById('no-announcements');
+                if (noAnn) noAnn.remove();
+
+                var div = document.createElement('div');
+                div.className = 'border border-secondary-subtle rounded-1 p-3 mb-2';
+                div.style.background = '#fff3cd';
+                div.innerHTML =
+                    '<div class="d-flex justify-content-between align-items-start mb-1">' +
+                        '<h4 class="h6 fw-bold mb-0">' + escapeHtml(data.title) + '</h4>' +
+                        '<span class="small text-secondary">' + escapeHtml(data.timestamp) + '</span>' +
+                    '</div>' +
+                    '<p class="small text-secondary mb-1">' + escapeHtml(data.body) + '</p>' +
+                    '<p class="small text-secondary mb-0"><i class="bi bi-person me-1"></i>' + escapeHtml(data.author) + '</p>';
+                list.insertBefore(div, list.firstChild);
+            });
+
+            function escapeHtml(str) {
+                var div = document.createElement('div');
+                div.appendChild(document.createTextNode(str || ''));
+                return div.innerHTML;
+            }
+        })();
+    </script>
 </body>
 
 </html>

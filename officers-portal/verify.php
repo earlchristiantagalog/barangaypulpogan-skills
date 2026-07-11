@@ -18,6 +18,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? 'citizen') !== 'office
 }
 
 require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../pusher_notify.php';
 
 // ------------------------------------------------------------------------
 // 2. POST HANDLING — approve / reject
@@ -30,8 +31,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo  = getDB();
             $newStatus = ($action === 'verify') ? 'Verified' : 'Rejected';
+
+            // Get post owner before updating
+            $getStmt = $pdo->prepare('SELECT resident_id, title FROM posts WHERE id = :id');
+            $getStmt->execute([':id' => $postId]);
+            $postRow = $getStmt->fetch();
+
             $stmt = $pdo->prepare('UPDATE posts SET status = :status WHERE id = :id');
             $stmt->execute([':status' => $newStatus, ':id' => $postId]);
+
+            // Pusher notification to the post owner
+            if ($postRow) {
+                notifyUser($postRow['resident_id'], 'post-status-updated', [
+                    'post_id'  => $postId,
+                    'title'    => $postRow['title'],
+                    'status'   => $newStatus,
+                    'message'  => 'Your post "' . $postRow['title'] . '" has been ' . strtolower($newStatus) . '.',
+                    'timestamp'=> date('Y-m-d H:i:s'),
+                ]);
+            }
 
             $_SESSION['flash_msg']  = 'Post ' . $newStatus . ' successfully.';
             $_SESSION['flash_type'] = 'success';

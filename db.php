@@ -126,6 +126,19 @@ function getDB(): PDO {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
 
+        // Create announcements table if it does not exist
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS announcements (
+                id          INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                title       VARCHAR(150) NOT NULL,
+                body        TEXT         NOT NULL,
+                author_id   VARCHAR(20)  NOT NULL,
+                author_name VARCHAR(100) NOT NULL,
+                created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
         return $pdo;
 
     } catch (PDOException $e) {
