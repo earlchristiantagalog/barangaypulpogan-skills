@@ -29,7 +29,10 @@ session_start();
 // 1. SESSION FIXATION PREVENTION — redirect if already authenticated
 // ========================================================================
 if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== '') {
-    header('Location: citizen-portal/');
+    $redirectPath = ($_SESSION['role'] ?? 'citizen') === 'officer'
+        ? 'officers-portal/'
+        : 'citizen-portal/';
+    header('Location: ' . $redirectPath);
     exit;
 }
 
@@ -328,6 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['purok_address']  = $purokAddress;
                             $_SESSION['mobile']         = $mobile;
                             $_SESSION['email']          = $rawEmail;
+                            $_SESSION['role']           = 'citizen';
 
                             header('Location: citizen-portal/');
                             exit;
@@ -384,9 +388,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['purok_address']  = $user['purok_address'];
                             $_SESSION['mobile']         = $user['mobile'];
                             $_SESSION['email']          = $user['email'];
+                            $_SESSION['role']           = $user['role'] ?? 'citizen';
 
-                            secureLog('LOGIN_SUCCESS', 'User ID: ' . $user['id']);
-                            header('Location: citizen-portal/');
+                            $redirectPath = ($_SESSION['role'] === 'officer')
+                                ? 'officers-portal/'
+                                : 'citizen-portal/';
+
+                            secureLog('LOGIN_SUCCESS', 'User ID: ' . $user['id'] . ' — Role: ' . $_SESSION['role']);
+                            header('Location: ' . $redirectPath);
                             exit;
                         } else {
                             // Invalid credentials — increment attempt counter

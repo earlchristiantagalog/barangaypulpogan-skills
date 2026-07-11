@@ -69,8 +69,10 @@ function getDB(): PDO {
                 mobile        VARCHAR(15)  NOT NULL,
                 email         VARCHAR(254) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
+                role          ENUM('citizen','officer') NOT NULL DEFAULT 'citizen',
                 created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_email (email)
+                INDEX idx_email (email),
+                INDEX idx_role (role)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
 
@@ -102,6 +104,11 @@ function getDB(): PDO {
         // Drop old 'purok' column if it still exists alongside 'district'
         if (in_array('purok', $columns, true) && in_array('district', $columns, true)) {
             $pdo->exec("ALTER TABLE residents DROP COLUMN purok");
+        }
+
+        // Add 'role' column if missing
+        if (!in_array('role', $columns, true)) {
+            $pdo->exec("ALTER TABLE residents ADD COLUMN role ENUM('citizen','officer') NOT NULL DEFAULT 'citizen' AFTER password_hash");
         }
 
         // Create posts table if it does not exist
