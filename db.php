@@ -22,21 +22,12 @@ function getDB(): PDO {
         return $pdo;
     }
 
+    // Database configuration — edit via Officers Portal > Settings (IT Officer only)
     $dbHost = 'localhost';
     $dbPort = '3306';
     $dbName = 'barangay_pulpogan_bayanihan';
     $dbUser = 'root';
     $dbPass = '';
-
-    // Override from db_settings.php if it exists
-    if (file_exists(__DIR__ . '/db_settings.php')) {
-        require_once __DIR__ . '/db_settings.php';
-        $dbHost = defined('DB_HOST') ? DB_HOST : $dbHost;
-        $dbPort = defined('DB_PORT') ? DB_PORT : $dbPort;
-        $dbName = defined('DB_NAME') ? DB_NAME : $dbName;
-        $dbUser = defined('DB_USER') ? DB_USER : $dbUser;
-        $dbPass = defined('DB_PASS') ? DB_PASS : $dbPass;
-    }
 
     try {
         // Connect without database to create it if needed
