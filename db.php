@@ -28,6 +28,16 @@ function getDB(): PDO {
     $dbUser = 'root';
     $dbPass = '';
 
+    // Override from db_settings.php if it exists
+    if (file_exists(__DIR__ . '/db_settings.php')) {
+        require_once __DIR__ . '/db_settings.php';
+        $dbHost = defined('DB_HOST') ? DB_HOST : $dbHost;
+        $dbPort = defined('DB_PORT') ? DB_PORT : $dbPort;
+        $dbName = defined('DB_NAME') ? DB_NAME : $dbName;
+        $dbUser = defined('DB_USER') ? DB_USER : $dbUser;
+        $dbPass = defined('DB_PASS') ? DB_PASS : $dbPass;
+    }
+
     try {
         // Connect without database to create it if needed
         $basePdo = new PDO(
@@ -69,7 +79,7 @@ function getDB(): PDO {
                 mobile        VARCHAR(15)  NOT NULL,
                 email         VARCHAR(254) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
-                role          ENUM('citizen','officer') NOT NULL DEFAULT 'citizen',
+                role          ENUM('citizen','officer','it_officer') NOT NULL DEFAULT 'citizen',
                 created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_email (email),
                 INDEX idx_role (role)
@@ -108,7 +118,19 @@ function getDB(): PDO {
 
         // Add 'role' column if missing
         if (!in_array('role', $columns, true)) {
-            $pdo->exec("ALTER TABLE residents ADD COLUMN role ENUM('citizen','officer') NOT NULL DEFAULT 'citizen' AFTER password_hash");
+            $pdo->exec("ALTER TABLE residents ADD COLUMN role ENUM('citizen','officer','it_officer') NOT NULL DEFAULT 'citizen' AFTER password_hash");
+        } else {
+            // Update role enum to include 'it_officer' if missing
+            $roleCol = null;
+            foreach ($colRows as $row) {
+                if ($row['Field'] === 'role') {
+                    $roleCol = $row;
+                    break;
+                }
+            }
+            if ($roleCol && strpos($roleCol['Type'], 'it_officer') === false) {
+                $pdo->exec("ALTER TABLE residents MODIFY COLUMN role ENUM('citizen','officer','it_officer') NOT NULL DEFAULT 'citizen'");
+            }
         }
 
         // Create posts table if it does not exist
